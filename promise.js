@@ -1,11 +1,3 @@
-// new Promise((resolve, reject) => {
-//     resolve(xxx)
-//     reject(yyy)
-// }).then(value => {
-//     console.log(value)
-// }, reason => {
-//     console.log(reason)
-// })
 
 class Promise {
   constructor(executor) {
@@ -177,17 +169,5 @@ Promise.resolvePromise = function (promise2, x, resolve, reject) {
     resolve(x)
   }
 }
-
-Promise.defer = Promise.deferred = function () {
-  let dfd = {}
-  dfd.promise = new Promise((resolve, reject) => {
-    dfd.resolve = resolve;
-    dfd.reject = reject;
-  });
-  return dfd;
-}
-
-
-
 
 module.exports = Promise;
