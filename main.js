@@ -1,9 +1,13 @@
 let Promise = require('./newPromise');
-
-new Promise(function (resolve, reject) {
-    console.log('1111')
-    resolve(1)
-})
+new Promise((resolve, reject) => {
+    console.log('开始')
+    resolve(6564222)
+}).then(
+    (a)=>{console.log('a',a)},
+    reason => {
+        console.log('reason:', reason)
+    }
+)
 
 // promise.then().then().then(function (data) {
 //     console.log('data:', data);

@@ -24,23 +24,44 @@ class newPromise {
         // 初始化值
         this.value = null
         this.reason = null
-        this.status = 'pending'
+        this.status = Promise.PENDING
     }
     // 定义 resolve 函数和 reject 函数
-    resolve() {
-        console.log('1111')
+    resolve(value) {
         // 成功后的操作:改变状态，成功后执行回调
-        if (this.status === 'pendding') {
-            this.status = 'fulfilled'
+        if (this.status === Promise.PENDING) {
+            this.status = Promise.FULFILLED
             this.value = value
         }
     }
-    reject() {
+    reject(reason) {
         // 失败后的操作：改变状态，失败后执行回调
-        if (this.status === 'pendding') {
-            this.status = 'rejected'
+        if (this.status === Promise.PENDING) {
+            this.status = Promise.REJECTED
             this.reason = reason
         }
     }
+    then(onFulfilled, onRejected) {
+        // 值得穿透问题,参数校验
+        if (typeof onFulfilled !== 'function') {
+            onFulfilled = function (value) {
+                return value
+            }
+        }
+        if (typeof onRejected !== 'function') {
+            onRejected = function (reason) {
+                throw reason
+            }
+        }
+        if (this.status === Promise.FULFILLED) {
+            onFulfilled(this.value)
+        }
+        if (this.status === Promise.REJECTED) {
+            onRejected(this.reason)
+        }
+    }
 }
+Promise.PENDING = 'pending'
+Promise.FULFILLED = 'fulfilled'
+Promise.REJECTED = 'rejected'
 module.exports = newPromise;
