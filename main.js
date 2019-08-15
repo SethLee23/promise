@@ -1,4 +1,4 @@
-let Promise = require('./newPromise');
+let Promise = require('./promise');
 new Promise((resolve, reject) => {
     console.log('开始')
     resolve(6564222)

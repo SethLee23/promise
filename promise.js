@@ -1,168 +1,193 @@
-// 1. 实现基本结构
-// 2. 实现then方法
-// 3. 实现链式调用
-function Promise(executor) {
-    var self = this
-  
-    self.status = 'pending'
-    self.onResolvedCallback = []
-    self.onRejectedCallback = []
-  
-    function resolve(value) {
-      if (value instanceof Promise) {
-        return value.then(resolve, reject)
-      }
-      setTimeout(function() { // 异步执行所有的回调函数
-        if (self.status === 'pending') {
-          self.status = 'resolved'
-          self.data = value
-          for (var i = 0; i < self.onResolvedCallback.length; i++) {
-            self.onResolvedCallback[i](value)
-          }
-        }
-      })
+// new Promise((resolve, reject) => {
+//     resolve(xxx)
+//     reject(yyy)
+// }).then(value => {
+//     console.log(value)
+// }, reason => {
+//     console.log(reason)
+// })
+
+class Promise {
+  constructor(executor) {
+    if (typeof executor !== 'function') {
+      throw new TypeError(`Promise resolver ${executor} is not a function`)
     }
-  
-    function reject(reason) {
-      setTimeout(function() { // 异步执行所有的回调函数
-        if (self.status === 'pending') {
-          self.status = 'rejected'
-          self.data = reason
-          for (var i = 0; i < self.onRejectedCallback.length; i++) {
-            self.onRejectedCallback[i](reason)
-          }
-        }
-      })
-    }
-  
+    this.initialValue()
+    this.initBind()
+    // 原生 promise 中异常处理在 reject 函数中
     try {
-      executor(resolve, reject)
-    } catch (reason) {
-      reject(reason)
+      executor(this.resolve, this.reject)
+    } catch (e) {
+      this.reject(e)
     }
+
   }
-/*  
-resolvePromise函数即为根据x的值来决定newPromise的状态的函数
-也即标准中的[Promise Resolution Procedure](https://promisesaplus.com/#point-47)
-x为`newPromise = promise1.then(onResolved, onRejected)`里`onResolved/onRejected`的返回值
-`resolve`和`reject`实际上是`newPromise`的`executor`的两个实参，因为很难挂在其它的地方，所以一并传进来。
-相信各位一定可以对照标准把标准转换成代码，这里就只标出代码在标准中对应的位置，只在必要的地方做一些解释
-*/
-  function resolvePromise(newPromise, x, resolve, reject) {
-    var then
-    var thenCalledOrThrow = false
-  
-    if (newPromise === x) {
-      return reject(new TypeError('Chaining cycle detected for promise!'))
-    }
-  
-    if (x instanceof Promise) {
-      if (x.status === 'pending') { //because x could resolved by a Promise Object
-        x.then(function(v) {
-          resolvePromise(newPromise, v, resolve, reject)
-        }, reject)
-      } else { //but if it is resolved, it will never resolved by a Promise Object but a static value;
-        x.then(resolve, reject)
-      }
-      return
-    }
-  
-    if ((x !== null) && ((typeof x === 'object') || (typeof x === 'function'))) {
-      try {
-        then = x.then //because x.then could be a getter
-        if (typeof then === 'function') {
-          then.call(x, function rs(y) {
-            if (thenCalledOrThrow) return
-            thenCalledOrThrow = true
-            return resolvePromise(newPromise, y, resolve, reject)
-          }, function rj(r) {
-            if (thenCalledOrThrow) return
-            thenCalledOrThrow = true
-            return reject(r)
-          })
-        } else {
-          resolve(x)
-        }
-      } catch (e) {
-        if (thenCalledOrThrow) return
-        thenCalledOrThrow = true
-        return reject(e)
-      }
-    } else {
-      resolve(x)
-    }
+  initBind() {
+    this.resolve = this.resolve.bind(this)
+    this.reject = this.reject.bind(this)
   }
-  
-  Promise.prototype.then = function(onResolved, onRejected) {
-    var self = this
-    var newPromise
-    onResolved = typeof onResolved === 'function' ? onResolved : function(v) {
-      return v
-    }
-    onRejected = typeof onRejected === 'function' ? onRejected : function(r) {
-      throw r
-    }
-  
-    if (self.status === 'resolved') {
-      return newPromise = new Promise(function(resolve, reject) {
-        setTimeout(function() { // 异步执行onResolved
-          try {
-            var x = onResolved(self.data)
-            resolvePromise(newPromise, x, resolve, reject)
-          } catch (reason) {
-            reject(reason)
-          }
-        })
+  initialValue() {
+    // 初始化值
+    this.value = null
+    this.reason = null
+    this.status = Promise.PENDING
+    // 添加成功和时报回调
+    this.onFulfilledCallbacks = []
+    this.onRejectedCallbacks = []
+  }
+  // 定义 resolve 函数和 reject 函数
+  resolve(value) {
+    // 成功后的操作:改变状态，成功后执行回调
+    if (this.status === Promise.PENDING) {
+      this.status = Promise.FULFILLED
+      this.value = value
+      this.onFulfilledCallbacks.forEach(fn => {
+        fn(this.value)
       })
     }
-  
-    if (self.status === 'rejected') {
-      return newPromise = new Promise(function(resolve, reject) {
-        setTimeout(function() { // 异步执行onRejected
-          try {
-            var x = onRejected(self.data)
-            resolvePromise(newPromise, x, resolve, reject)
-          } catch (reason) {
-            reject(reason)
-          }
-        })
+  }
+  reject(reason) {
+    // 失败后的操作：改变状态，失败后执行回调
+    if (this.status === Promise.PENDING) {
+      this.status = Promise.REJECTED
+      this.reason = reason
+      this.onRejectedCallbacks.forEach(fn => {
+        fn(this.reason)
       })
     }
-  
-    if (self.status === 'pending') {
-      // 这里之所以没有异步执行，是因为这些函数必然会被resolve或reject调用，而resolve或reject函数里的内容已是异步执行，构造函数里的定义
-      return newPromise = new Promise(function(resolve, reject) {
-        self.onResolvedCallback.push(function(value) {
+  }
+
+  then(onFulfilled, onRejected) {
+    // 值的穿透问题,参数校验
+    if (typeof onFulfilled !== 'function') {
+      onFulfilled = function (value) {
+        return value
+      }
+    }
+    if (typeof onRejected !== 'function') {
+      onRejected = function (reason) {
+        throw reason
+      }
+    }
+
+    // 实现链式调用，且改变后面的 then 的值，必须通过新的实例
+    let promise2 = new Promise((resolve, reject) => {
+
+      // 实现异步操作
+      if (this.status === Promise.FULFILLED) {
+        setTimeout(() => {
           try {
-            var x = onResolved(value)
-            resolvePromise(newPromise, x, resolve, reject)
-          } catch (r) {
-            reject(r)
+            let x = onFulfilled(this.value)
+            Promise.resolvePromise(promise2, x, resolve, reject)
+          } catch (e) {
+            reject(e)
           }
+
         })
-  
-        self.onRejectedCallback.push(function(reason) {
+
+      }
+      if (this.status === Promise.REJECTED) {
+        setTimeout(() => {
+          try {
+            let x = onRejected(this.reason)
+            Promise.resolvePromise(promise2, x, resolve, reject)
+          } catch (e) {
+            reject(e)
+          }
+
+        })
+
+      }
+      // pending 状态下将要执行的函数放到数组中
+      if (this.status === Promise.PENDING) {
+        this.onFulfilledCallbacks.push((value) => {
+          setTimeout(() => {
             try {
-              var x = onRejected(reason)
-              resolvePromise(newPromise, x, resolve, reject)
-            } catch (r) {
-              reject(r)
+              let x = onFulfilled(value)
+              Promise.resolvePromise(promise2, x, resolve, reject)
+            } catch (e) {
+              reject(e)
             }
+
           })
-      })
-    }
-  }
-  
-  Promise.prototype.catch = function(onRejected) {
-    return this.then(null, onRejected)
-  }
-  
-  Promise.deferred = Promise.defer = function() {
-    var dfd = {}
-    dfd.promise = new Promise(function(resolve, reject) {
-      dfd.resolve = resolve
-      dfd.reject = reject
+        })
+        this.onRejectedCallbacks.push(reason => {
+          setTimeout(() => {
+            try {
+              let x = onRejected(reason)
+              Promise.resolvePromise(promise2, x, resolve, reject)
+            } catch (e) {
+              reject(e)
+            }
+
+          })
+        })
+      }
+
     })
-    return dfd
+
+    return promise2
+
   }
+}
+Promise.PENDING = 'pending'
+Promise.FULFILLED = 'fulfilled'
+Promise.REJECTED = 'rejected'
+
+
+Promise.resolvePromise = function (promise2, x, resolve, reject) {
+  // 避免链式效应
+  if (promise2 === x) {
+    reject(new TypeError('Chaining circle detected for promise'))
+  }
+  let called = false
+  if (x instanceof Promise) {
+    // 判断 x 是否为 promise
+    x.then(value => {
+      Promise.resolvePromise(promise2, value, resolve, reject)
+    }, reason => {
+      reject(reason)
+    })
+  } else if (x !== null && (typeof x === 'object' || typeof x === 'function')) {
+    // 判断 x 是否为对象或者函数
+    try {
+      const then = x.then
+      if (typeof then === 'function') {
+        then.call(x, value => {
+          if (called) return
+          called = true
+          Promise.resolvePromise(promise2, value, resolve, reject)
+        }, reason => {
+          if (called) return
+          called = true
+          reject(reason)
+        })
+      } else {
+        if (called) return
+        called = true
+        resolve(x)
+      }
+    } catch (e) {
+      if (called) return
+      called = true
+      reject(e)
+    }
+
+  } else {
+    resolve(x)
+  }
+}
+
+Promise.defer = Promise.deferred = function () {
+  let dfd = {}
+  dfd.promise = new Promise((resolve, reject) => {
+    dfd.resolve = resolve;
+    dfd.reject = reject;
+  });
+  return dfd;
+}
+
+
+
+
 module.exports = Promise;
