@@ -14,7 +14,13 @@ class newPromise {
         }
         this.initialValue()
         this.initBind()
-        executor(this.resolve, this.reject)
+        // 原生 promise 中异常处理在 reject 函数中
+        try {
+            executor(this.resolve, this.reject)
+        } catch (e) {
+            this.reject(e)
+        }
+
     }
     initBind() {
         this.resolve = this.resolve.bind(this)
@@ -53,11 +59,21 @@ class newPromise {
                 throw reason
             }
         }
+        // 实现异步操作
         if (this.status === Promise.FULFILLED) {
-            onFulfilled(this.value)
+            setTimeout(() => {
+                onFulfilled(this.value)
+            })
+
         }
         if (this.status === Promise.REJECTED) {
-            onRejected(this.reason)
+            setTimeout(() => {
+                onRejected(this.reason)
+            })
+
+        }
+        if(this.status === Promise.PENDING){
+            
         }
     }
 }
