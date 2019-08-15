@@ -1,7 +1,7 @@
 let Promise = require('./newPromise');
 
 new Promise(function (resolve, reject) {
-    reject(100);
+    console.log('1111')
     resolve(1)
 })
 
