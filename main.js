@@ -1,7 +1,8 @@
 let Promise = require('./newPromise');
 
-let promise = new Promise(function (resolve, reject) {
+new Promise(function (resolve, reject) {
     reject(100);
+    resolve(1)
 })
 
 // promise.then().then().then(function (data) {
